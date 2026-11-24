@@ -22,9 +22,25 @@ log = logging.getLogger("quota-transfer")
 def build_service_from_env() -> TransferService:
     crash_hook = None
     if os.environ.get("CRASH_AFTER_DONOR_WRITE") == "1":
-        # 演示用：模拟“让出方降额后、接收方升额前进程崩溃退出”
+        # 演示用：模拟“首个组写完后、第二个组写之前进程崩溃退出”
+        # （划转场景为让出方降额后；周期切换场景为第一组切换后）
         def crash_hook(_stage: str) -> None:
             os._exit(42)
+
+    target_period_raw = os.environ.get("CPU_PERIOD_USEC", "").strip()
+    if target_period_raw:
+        try:
+            target_period = int(target_period_raw)
+        except ValueError:
+            raise ValueError(
+                f"CPU_PERIOD_USEC 必须为正整数（微秒），收到: {target_period_raw!r}"
+            )
+        if target_period <= 0:
+            raise ValueError(
+                f"CPU_PERIOD_USEC 必须为正整数（微秒），收到: {target_period_raw!r}"
+            )
+    else:
+        target_period = None
 
     return TransferService(
         group_paths={
@@ -34,12 +50,19 @@ def build_service_from_env() -> TransferService:
         state_dir=Path(os.environ.get("STATE_DIR", "/state")),
         min_quota=int(os.environ.get("MIN_QUOTA", "20000")),
         crash_hook=crash_hook,
+        target_period=target_period,
     )
 
 
 class TransferRequest(BaseModel):
     donor: str = Field(description="让出方组名（groupA 或 groupB）")
-    amount: int = Field(gt=0, description="划转量（cpu.max quota 单位，微秒/周期）")
+    amount: int = Field(
+        gt=0,
+        description=(
+            "划转量，始终按首次周期切换前的基线周期核算"
+            "（cpu.max quota 单位，微秒/基线周期）"
+        ),
+    )
 
 
 class TransferResponse(BaseModel):
@@ -49,6 +72,9 @@ class TransferResponse(BaseModel):
     donor: str
     receiver: str
     amount: int
+    amount_period: int | None = None
+    applied_delta: int | None = None
+    active_period: int | None = None
     post: dict
     at: str
 

@@ -9,7 +9,10 @@ services:
       GROUP_B_CPU_MAX: /cgroup/groupB/cpu.max
       STATE_DIR: /state
       MIN_QUOTA: "20000"
-      # 演示用：置 1 后，服务在“让出方降额后、接收方升额前”模拟崩溃退出
+      # 可选启动配置：把两组 cpu.max 切到指定的较短 period（微秒）。
+      # 留空/不设则不切换，保持磁盘上的原周期。
+      CPU_PERIOD_USEC: "${CPU_PERIOD_USEC:-}"
+      # 演示用：置 1 后，服务在“首个组写完后、第二个组写之前”模拟崩溃退出
       CRASH_AFTER_DONOR_WRITE: "${CRASH_AFTER_DONOR_WRITE:-0}"
     volumes:
       - ./cgroup:/cgroup
