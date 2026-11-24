@@ -1,0 +1,16 @@
+services:
+  quota-transfer:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      # 两组由服务独占管理的 cpu.max（此处用普通文件模拟 cgroup v2）
+      GROUP_A_CPU_MAX: /cgroup/groupA/cpu.max
+      GROUP_B_CPU_MAX: /cgroup/groupB/cpu.max
+      STATE_DIR: /state
+      MIN_QUOTA: "20000"
+      # 演示用：置 1 后，服务在“让出方降额后、接收方升额前”模拟崩溃退出
+      CRASH_AFTER_DONOR_WRITE: "${CRASH_AFTER_DONOR_WRITE:-0}"
+    volumes:
+      - ./cgroup:/cgroup
+      - ./state:/state

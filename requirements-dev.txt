@@ -1,0 +1,4 @@
+# 运行测试需要的额外依赖：pytest httpx
+-r requirements.txt
+pytest>=8
+httpx>=0.27
